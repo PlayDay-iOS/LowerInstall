@@ -1,12 +1,60 @@
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #import <notify.h>
 #import <Social/Social.h>
 #import <dlfcn.h>
+#import <signal.h>
+#import <stdlib.h>
+#import <string.h>
+#import <sys/sysctl.h>
 #import <sys/utsname.h>
-#import <prefs.h>
+#import <unistd.h>
+#import <libprefs/prefs.h>
 
 #define NSLog(...)
 
-#define PLIST_PATH_Settings "/var/mobile/Library/Preferences/com.julioverne.lowerinstall.plist"
+#define PLIST_PATH_Settings "/var/mobile/Library/Preferences/dev.playday3008.lowerinstall.plist"
+
+@interface PSListController (Private)
+- (UITableView *)table;
+- (void)_returnKeyPressed:(id)arg1;
+@end
+
+static void LIKillProcessByName(const char *name)
+{
+	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
+	size_t size = 0;
+	if (sysctl(mib, 4, NULL, &size, NULL, 0) != 0 || size == 0) {
+		return;
+	}
+
+	struct kinfo_proc *processes = (struct kinfo_proc *)malloc(size);
+	if (processes == NULL) {
+		return;
+	}
+
+	if (sysctl(mib, 4, processes, &size, NULL, 0) != 0) {
+		free(processes);
+		return;
+	}
+
+	pid_t selfPid = getpid();
+	size_t count = size / sizeof(struct kinfo_proc);
+	for (size_t i = 0; i < count; i++) {
+		pid_t pid = processes[i].kp_proc.p_pid;
+		if (pid > 1 && pid != selfPid && strcmp(processes[i].kp_proc.p_comm, name) == 0) {
+			kill(pid, SIGTERM);
+		}
+	}
+
+	free(processes);
+}
+
+static void LIRespring(void)
+{
+	LIKillProcessByName("backboardd");
+	LIKillProcessByName("SpringBoard");
+}
 
 @interface LowerInstallSettingsController : PSListController
 {
@@ -103,7 +151,7 @@
 		[spec setProperty:[UIImage imageWithContentsOfFile:[[self bundle] pathForResource:@"twitter" ofType:@"png"]] forKey:@"iconImage"];
         [specifiers addObject:spec];
 		spec = [PSSpecifier emptyGroupSpecifier];
-        [spec setProperty:@"LowerInstall © 2022" forKey:@"footerText"];
+        [spec setProperty:@"LowerInstall © 2022, PlayDay © 2026" forKey:@"footerText"];
         [specifiers addObject:spec];
 		_specifiers = [specifiers copy];
 	}
@@ -137,7 +185,7 @@
 - (void)reset
 {
 	[@{} writeToFile:@PLIST_PATH_Settings atomically:YES];
-	notify_post("com.julioverne.lowerinstall/SettingsChanged");
+	notify_post("dev.playday3008.lowerinstall/SettingsChanged");
 	[self reloadSpecifiers];
 	[self showPrompt];
 }
@@ -148,7 +196,7 @@
 		NSMutableDictionary *Prefs = [[NSMutableDictionary alloc] initWithContentsOfFile:@PLIST_PATH_Settings]?:[NSMutableDictionary dictionary];
 		Prefs[[specifier identifier]] = value;
 		[Prefs writeToFile:@PLIST_PATH_Settings atomically:YES];
-		notify_post("com.julioverne.lowerinstall/SettingsChanged");
+		notify_post("dev.playday3008.lowerinstall/SettingsChanged");
 		if ([[specifier properties] objectForKey:@"PromptRespring"]) {
 			[self showPrompt];
 		}
@@ -157,7 +205,7 @@
 - (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex
 {
     if (alertView.tag == 55 && buttonIndex == 1) {
-        system("killall backboardd SpringBoard");
+		LIRespring();
     }
 }
 - (id)readPreferenceValue:(PSSpecifier*)specifier
@@ -201,7 +249,7 @@
 		[headerView addSubview:_label];
 		[headerView addSubview:underLabel];
 
-		[_table setTableHeaderView:headerView];
+		[[self table] setTableHeaderView:headerView];
 		[NSTimer scheduledTimerWithTimeInterval:0.5 target:self selector:@selector(increaseAlpha) userInfo:nil repeats:NO];
 	}
 }

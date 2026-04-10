@@ -1,0 +1,10 @@
+Package: dev.playday3008.lowerinstall
+Name: LowerInstall
+Depends: mobilesubstrate, preferenceloader, firmware (>= 9.0)
+Conflicts: com.julioverne.lowerinstall
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Install apps that require a newer iOS version. Hooks both itunesstored (iOS 9) and appstored (iOS 10+).
+Maintainer: PlayDay <18056374+playday3008@users.noreply.github.com>
+Author: julioverne (original), PlayDay (fork)
+Section: Tweaks

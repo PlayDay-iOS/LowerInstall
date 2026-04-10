@@ -12,7 +12,7 @@ extern const char *__progname;
 #define LIInfo(fmt, ...)   LILog(LOG_INFO, fmt, ##__VA_ARGS__)
 #define LIDebug(fmt, ...)  LILog(LOG_DEBUG, fmt, ##__VA_ARGS__)
 
-#define PLIST_PATH_Settings "/var/mobile/Library/Preferences/com.julioverne.lowerinstall.plist"
+#define PLIST_PATH_Settings "/var/mobile/Library/Preferences/dev.playday3008.lowerinstall.plist"
 
 
 static BOOL Enabled;
@@ -282,10 +282,10 @@ static void settingsChangedLowerInstall()
 
 	LINotice("loading in process '%s' (device=%s, iOS=%s)", __progname, systemInfo.machine, STORED_STRING[kCurrentiOSVersion]);
 
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)settingsChangedLowerInstall, CFSTR("com.julioverne.lowerinstall/SettingsChanged"), NULL, CFNotificationSuspensionBehaviorCoalesce);
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)settingsChangedLowerInstall, CFSTR("dev.playday3008.lowerinstall/SettingsChanged"), NULL, CFNotificationSuspensionBehaviorCoalesce);
 	settingsChangedLowerInstall();
 
-	if(strcmp(__progname, "itunesstored") == 0) {
+	if(strcmp(__progname, "itunesstored") == 0 || strcmp(__progname, "appstored") == 0) {
 		%init(itunesstoredHooks);
 		LINotice("initialized itunesstoredHooks (store UA spoofing)");
 	} else {

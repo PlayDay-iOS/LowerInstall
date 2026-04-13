@@ -36,6 +36,55 @@ extern const char *__progname;
 
 #define PLIST_PATH "/var/mobile/Library/Preferences/dev.playday3008.lowerinstall.plist"
 
+static struct {
+    NSString *currentDevice;   // uname().machine, cached at %ctor
+    NSString *currentVersion;  // UIDevice.currentDevice.systemVersion, cached at %ctor
+    NSString *spoofDevice;     // loaded from prefs; defaults to currentDevice
+    NSString *spoofVersion;    // loaded from prefs; defaults to currentVersion
+} g_state;
+
+static BOOL g_enabled       = YES;
+static BOOL g_hooksInstalld = YES;
+static BOOL g_hooksStore    = YES;
+
+static void settingsChanged(CFNotificationCenterRef center,
+                            void *observer,
+                            CFStringRef name,
+                            const void *object,
+                            CFDictionaryRef userInfo) {
+    (void)center; (void)observer; (void)name; (void)object; (void)userInfo;
+    @autoreleasepool {
+        NSDictionary *p = [NSDictionary dictionaryWithContentsOfFile:@PLIST_PATH] ?: @{};
+
+        g_enabled       = [(p[@"Enabled"]       ?: @YES) boolValue];
+        g_hooksInstalld = [(p[@"HooksInstalld"] ?: @YES) boolValue];
+        g_hooksStore    = [(p[@"HooksStore"]    ?: @YES) boolValue];
+
+        NSString *sd = p[@"SpoofDevice"]  ?: g_state.currentDevice;
+        NSString *sv = p[@"SpoofVersion"] ?: g_state.currentVersion;
+        [g_state.spoofDevice  release]; g_state.spoofDevice  = [sd copy];
+        [g_state.spoofVersion release]; g_state.spoofVersion = [sv copy];
+
+        LINotice("reload: enabled=%d installd=%d store=%d spoof='%s'/'%s'",
+                 g_enabled, g_hooksInstalld, g_hooksStore,
+                 g_state.spoofDevice.UTF8String,
+                 g_state.spoofVersion.UTF8String);
+    }
+}
+
 %ctor {
-    LINotice("skeleton loaded in '%s'", __progname);
+    struct utsname systemInfo;
+    uname(&systemInfo);
+    g_state.currentDevice  = [[NSString alloc] initWithUTF8String:systemInfo.machine];
+    g_state.currentVersion = [[[UIDevice currentDevice] systemVersion] copy];
+
+    LINotice("loading in '%s' (device=%s, iOS=%s)",
+             __progname, systemInfo.machine,
+             g_state.currentVersion.UTF8String);
+
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(),
+        NULL, (CFNotificationCallback)settingsChanged,
+        CFSTR("dev.playday3008.lowerinstall/SettingsChanged"),
+        NULL, CFNotificationSuspensionBehaviorCoalesce);
+    settingsChanged(NULL, NULL, NULL, NULL, NULL);
 }

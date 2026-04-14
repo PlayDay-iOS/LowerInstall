@@ -17,18 +17,190 @@
 - (void)_returnKeyPressed:(id)arg1;
 @end
 
+static void LIKillProcessByName(const char *name) {
+    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
+    size_t size = 0;
+    if (sysctl(mib, 4, NULL, &size, NULL, 0) != 0 || size == 0) return;
+
+    struct kinfo_proc *procs = (struct kinfo_proc *)malloc(size);
+    if (!procs) return;
+    if (sysctl(mib, 4, procs, &size, NULL, 0) != 0) { free(procs); return; }
+
+    pid_t self_pid = getpid();
+    size_t count = size / sizeof(struct kinfo_proc);
+    for (size_t i = 0; i < count; i++) {
+        pid_t pid = procs[i].kp_proc.p_pid;
+        if (pid > 1 && pid != self_pid &&
+            strcmp(procs[i].kp_proc.p_comm, name) == 0) {
+            kill(pid, SIGTERM);
+        }
+    }
+    free(procs);
+}
+
+static void LIRespring(void) {
+    LIKillProcessByName("backboardd");
+    LIKillProcessByName("SpringBoard");
+}
+
 @interface LowerInstallSettingsController : PSListController
 @end
 
 @implementation LowerInstallSettingsController
 - (id)specifiers {
     if (!_specifiers) {
-        _specifiers = [[NSMutableArray array] copy];
+        NSMutableArray *specifiers = [NSMutableArray array];
+        PSSpecifier *spec;
+
+        // 1. master Enabled toggle
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Enabled"
+                                              target:self
+                                                 set:@selector(setPreferenceValue:specifier:)
+                                                 get:@selector(readPreferenceValue:)
+                                              detail:Nil
+                                                cell:PSSwitchCell
+                                                edit:Nil];
+        [spec setProperty:@"Enabled" forKey:@"key"];
+        [spec setProperty:@YES forKey:@"default"];
+        [specifiers addObject:spec];
+
+        // 2. group: Hooks
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Hooks"
+                                              target:self set:Nil get:Nil
+                                              detail:Nil cell:PSGroupCell edit:Nil];
+        [spec setProperty:@"Hooks" forKey:@"label"];
+        [spec setProperty:@"Disable a subsystem to skip its method swizzles." forKey:@"footerText"];
+        [specifiers addObject:spec];
+
+        // 3. HooksInstalld
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Install-time bypasses"
+                                              target:self
+                                                 set:@selector(setPreferenceValue:specifier:)
+                                                 get:@selector(readPreferenceValue:)
+                                              detail:Nil cell:PSSwitchCell edit:Nil];
+        [spec setProperty:@"HooksInstalld" forKey:@"key"];
+        [spec setProperty:@YES forKey:@"default"];
+        [specifiers addObject:spec];
+
+        // 4. HooksStore
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Store User-Agent spoofing"
+                                              target:self
+                                                 set:@selector(setPreferenceValue:specifier:)
+                                                 get:@selector(readPreferenceValue:)
+                                              detail:Nil cell:PSSwitchCell edit:Nil];
+        [spec setProperty:@"HooksStore" forKey:@"key"];
+        [spec setProperty:@YES forKey:@"default"];
+        [specifiers addObject:spec];
+
+        // 5. group: Spoofed identity
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Spoofed identity"
+                                              target:self set:Nil get:Nil
+                                              detail:Nil cell:PSGroupCell edit:Nil];
+        [spec setProperty:@"Spoofed identity" forKey:@"label"];
+        [spec setProperty:@"Values sent to Apple's Store metadata servers. Empty = use current." forKey:@"footerText"];
+        [specifiers addObject:spec];
+
+        // runtime-read current values for defaults
+        struct utsname systemInfo;
+        uname(&systemInfo);
+        NSString *currentDevice  = [NSString stringWithFormat:@"%s", systemInfo.machine];
+        NSString *currentVersion = [[UIDevice currentDevice] systemVersion];
+
+        // 6. SpoofVersion
+        spec = [PSSpecifier preferenceSpecifierNamed:@"iOS Version"
+                                              target:self
+                                                 set:@selector(setPreferenceValue:specifier:)
+                                                 get:@selector(readPreferenceValue:)
+                                              detail:Nil cell:PSEditTextCell edit:Nil];
+        [spec setProperty:@"SpoofVersion" forKey:@"key"];
+        [spec setProperty:currentVersion forKey:@"default"];
+        [spec setProperty:@(UIKeyboardTypeNumbersAndPunctuation) forKey:@"keyboardType"];
+        [spec setProperty:@(UITextAutocapitalizationTypeNone) forKey:@"autoCapsType"];
+        [spec setProperty:@(UITextAutocorrectionTypeNo) forKey:@"autoCorrectionType"];
+        [specifiers addObject:spec];
+
+        // 7. SpoofDevice
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Device"
+                                              target:self
+                                                 set:@selector(setPreferenceValue:specifier:)
+                                                 get:@selector(readPreferenceValue:)
+                                              detail:Nil cell:PSEditTextCell edit:Nil];
+        [spec setProperty:@"SpoofDevice" forKey:@"key"];
+        [spec setProperty:currentDevice forKey:@"default"];
+        [spec setProperty:@(UITextAutocapitalizationTypeNone) forKey:@"autoCapsType"];
+        [spec setProperty:@(UITextAutocorrectionTypeNo) forKey:@"autoCorrectionType"];
+        [specifiers addObject:spec];
+
+        // 8. empty group spacer
+        [specifiers addObject:[PSSpecifier emptyGroupSpecifier]];
+
+        // 9. Reset link
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Reset settings"
+                                              target:self set:NULL get:NULL
+                                              detail:Nil cell:PSLinkCell edit:Nil];
+        spec->action = @selector(reset);
+        [specifiers addObject:spec];
+
+        // 10. footer
+        spec = [PSSpecifier emptyGroupSpecifier];
+        [spec setProperty:@"LowerInstall © PlayDay 2026" forKey:@"footerText"];
+        [specifiers addObject:spec];
+
+        _specifiers = [specifiers copy];
     }
     return _specifiers;
 }
 - (void)loadView {
     [super loadView];
     self.title = @"LowerInstall";
+}
+
+- (id)readPreferenceValue:(PSSpecifier *)specifier {
+    @autoreleasepool {
+        NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@PLIST_PATH];
+        return prefs[[specifier identifier]] ?: [specifier properties][@"default"];
+    }
+}
+
+- (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
+    @autoreleasepool {
+        NSMutableDictionary *prefs =
+            [[NSMutableDictionary alloc] initWithContentsOfFile:@PLIST_PATH]
+                ?: [NSMutableDictionary dictionary];
+        prefs[[specifier identifier]] = value;
+        [prefs writeToFile:@PLIST_PATH atomically:YES];
+        notify_post("dev.playday3008.lowerinstall/SettingsChanged");
+        if ([[specifier properties] objectForKey:@"PromptRespring"]) {
+            [self showPrompt];
+        }
+    }
+}
+
+- (void)showPrompt {
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:self.title
+                                                    message:@"A respring is required for this option."
+                                                   delegate:self
+                                          cancelButtonTitle:@"Cancel"
+                                          otherButtonTitles:@"Respring", nil];
+    alert.tag = 55;
+    [alert show];
+}
+
+- (void)reset {
+    [@{} writeToFile:@PLIST_PATH atomically:YES];
+    notify_post("dev.playday3008.lowerinstall/SettingsChanged");
+    [self reloadSpecifiers];
+    [self showPrompt];
+}
+
+- (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex {
+    if (alertView.tag == 55 && buttonIndex == 1) {
+        LIRespring();
+    }
+}
+
+- (void)_returnKeyPressed:(id)arg1 {
+    [super _returnKeyPressed:arg1];
+    [self.view endEditing:YES];
 }
 @end

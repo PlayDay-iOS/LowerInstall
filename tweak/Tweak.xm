@@ -223,6 +223,30 @@ static void settingsChanged(CFNotificationCenterRef center,
 
 %end   // group InstalldHooks
 
+%group StoreHooks
+
+%hook NSMutableURLRequest
+- (void)setValue:(NSString *)value forHTTPHeaderField:(NSString *)field {
+    if (!g_enabled || !g_hooksStore || !field || !value ||
+        ![field isEqualToString:@"User-Agent"] ||
+        [value rangeOfString:g_state.currentVersion].location == NSNotFound) {
+        %orig(value, field);
+        return;
+    }
+    NSString *rewritten = value;
+    rewritten = [rewritten stringByReplacingOccurrencesOfString:
+        [NSString stringWithFormat:@"/%@ ", g_state.currentVersion]
+                  withString:[NSString stringWithFormat:@"/%@ ", g_state.spoofVersion]];
+    rewritten = [rewritten stringByReplacingOccurrencesOfString:
+        [NSString stringWithFormat:@"/%@ ", g_state.currentDevice]
+                  withString:[NSString stringWithFormat:@"/%@ ", g_state.spoofDevice]];
+    LIInfo("UA spoof: '%s' -> '%s'", value.UTF8String, rewritten.UTF8String);
+    %orig(rewritten, field);
+}
+%end
+
+%end   // group StoreHooks
+
 %ctor {
     struct utsname systemInfo;
     uname(&systemInfo);

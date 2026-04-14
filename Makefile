@@ -1,6 +1,6 @@
 export ARCHS           = armv7 armv7s arm64 arm64e
-export TARGET          = iphone:12.4:9.0
-export PACKAGE_VERSION = 1.2.0
+export TARGET          = iphone:12.4:5.0
+export PACKAGE_VERSION = 1.3.0
 
 include $(THEOS)/makefiles/common.mk
 

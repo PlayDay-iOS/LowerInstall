@@ -1,8 +1,8 @@
 Package: dev.playday3008.lowerinstall
 Name: LowerInstall
-Version: 1.2.0
+Version: 1.3.0
 Architecture: iphoneos-arm
-Depends: mobilesubstrate, preferenceloader, firmware (>= 9.0)
+Depends: mobilesubstrate, preferenceloader, firmware (>= 5.0)
 Conflicts: com.julioverne.lowerinstall
 Description: Install apps that require a newer iOS version. Hooks installd to skip device-family/thinning/metadata checks, and spoofs the App Store User-Agent (itunesstored on iOS 9, appstored on iOS 10+) so metadata servers return IPAs for a spoofed OS version. Inspired by julioverne/LowerInstall.
 Maintainer: PlayDay <18056374+playday3008@users.noreply.github.com>

@@ -1,5 +1,3 @@
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
 #import <UIKit/UIKit.h>
 #import <Preferences/Preferences.h>
 #import <notify.h>
@@ -11,6 +9,10 @@
 #import <unistd.h>
 
 #define PLIST_PATH "/var/mobile/Library/Preferences/dev.playday3008.lowerinstall.plist"
+
+static BOOL LISystemVersionAtLeast(NSString *version) {
+    return [[[UIDevice currentDevice] systemVersion] compare:version options:NSNumericSearch] != NSOrderedAscending;
+}
 
 @interface PSListController (Private)
 - (UITableView *)table;
@@ -220,8 +222,15 @@ static void LIRespring(void) {
 - (void)loadView {
     [super loadView];
     self.title = @"LowerInstall";
-    [UISwitch appearanceWhenContainedIn:self.class, nil].onTintColor =
-        [UIColor colorWithRed:0.09 green:0.99 blue:0.99 alpha:1.0];
+    UIColor *tint = [UIColor colorWithRed:0.09 green:0.99 blue:0.99 alpha:1.0];
+    if (LISystemVersionAtLeast(@"9.0")) {
+        [UISwitch appearanceWhenContainedInInstancesOfClasses:@[self.class]].onTintColor = tint;
+    } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        [UISwitch appearanceWhenContainedIn:self.class, nil].onTintColor = tint;
+#pragma clang diagnostic pop
+    }
     [self HeaderCell];
 }
 
@@ -247,13 +256,27 @@ static void LIRespring(void) {
 }
 
 - (void)showPrompt {
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:self.title
-                                                    message:@"A respring is required for this option."
-                                                   delegate:self
-                                          cancelButtonTitle:@"Cancel"
-                                          otherButtonTitles:@"Respring", nil];
-    alert.tag = 55;
-    [alert show];
+    if (LISystemVersionAtLeast(@"8.0")) {
+        UIAlertController *ac = [UIAlertController alertControllerWithTitle:self.title
+                                                                   message:@"A respring is required for this option."
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+        [ac addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+        [ac addAction:[UIAlertAction actionWithTitle:@"Respring" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
+            LIRespring();
+        }]];
+        [self presentViewController:ac animated:YES completion:nil];
+    } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:self.title
+                                                        message:@"A respring is required for this option."
+                                                       delegate:self
+                                              cancelButtonTitle:@"Cancel"
+                                              otherButtonTitles:@"Respring", nil];
+        alert.tag = 55;
+        [alert show];
+#pragma clang diagnostic pop
+    }
 }
 
 - (void)reset {
@@ -263,18 +286,45 @@ static void LIRespring(void) {
     [self showPrompt];
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 - (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex {
     if (alertView.tag == 55 && buttonIndex == 1) {
         LIRespring();
     }
 }
+#pragma clang diagnostic pop
+
+static void LIOpenURL(NSString *urlString) {
+    NSURL *url = [NSURL URLWithString:urlString];
+    if (LISystemVersionAtLeast(@"10.0")) {
+        [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        [[UIApplication sharedApplication] openURL:url];
+#pragma clang diagnostic pop
+    }
+}
 
 - (void)openModels {
-    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://theapplewiki.com/wiki/Models"]];
+    LIOpenURL(@"https://theapplewiki.com/wiki/Models");
 }
 
 - (void)openFirmware {
-    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://theapplewiki.com/wiki/Category:IOS_Firmware"]];
+    LIOpenURL(@"https://theapplewiki.com/wiki/Category:IOS_Firmware");
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    for (PSSpecifier *spec in [self specifiers]) {
+        NSString *placeholder = [spec propertyForKey:@"placeholder"];
+        if (!placeholder) continue;
+        UITableViewCell *cell = [self cachedCellForSpecifier:spec];
+        if (cell && [cell respondsToSelector:@selector(textField)]) {
+            ((UITextField *)[cell performSelector:@selector(textField)]).placeholder = placeholder;
+        }
+    }
 }
 
 - (void)_returnKeyPressed:(id)arg1 {

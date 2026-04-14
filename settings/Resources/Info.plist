@@ -11,7 +11,7 @@
   <key>CFBundlePackageType</key>
   <string>BNDL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.2.0</string>
+  <string>1.3.0</string>
   <key>NSPrincipalClass</key>
   <string>LowerInstallSettingsController</string>
 </dict>

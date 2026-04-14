@@ -5,5 +5,6 @@ export PACKAGE_VERSION = 1.0.0
 include $(THEOS)/makefiles/common.mk
 
 SUBPROJECTS += tweak
+SUBPROJECTS += settings
 
 include $(THEOS_MAKE_PATH)/aggregate.mk

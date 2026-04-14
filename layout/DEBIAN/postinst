@@ -1,0 +1,18 @@
+#!/bin/bash
+declare -a cydia
+cydia=($CYDIA)
+
+# Kill tweaked daemons so launchd respawns them under Substrate.
+#  - installd      : always present, lazy-launched on install.
+#  - itunesstored  : iOS 9 only (absent on iOS 10+).
+#  - appstored     : iOS 10+ only (absent on iOS 9).
+# SIGKILL (-9) because the goal is an immediate respawn, not graceful exit.
+killall -9 installd     2>/dev/null || true
+killall -9 itunesstored 2>/dev/null || true
+killall -9 appstored    2>/dev/null || true
+
+# Tell the package manager no respring is required.
+if [[ ${CYDIA+@} ]]; then
+    eval "echo 'finish:return' >&${cydia[0]}"
+fi
+exit 0

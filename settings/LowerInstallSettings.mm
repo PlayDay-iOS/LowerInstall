@@ -49,12 +49,13 @@ static void LIRespring(void) {
     UILabel *_label;
     UILabel *_underLabel;
 }
-- (void)HeaderCell;
+- (void)setupHeaderView;
 - (void)increaseAlpha;
 @end
 
 @implementation LowerInstallSettingsController
-- (void)HeaderCell {
+- (void)setupHeaderView {
+    if (_label) return;
     @autoreleasepool {
         UIView *headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 120)];
         CGFloat width = [[UIScreen mainScreen] bounds].size.width;
@@ -231,7 +232,7 @@ static void LIRespring(void) {
         [UISwitch appearanceWhenContainedIn:self.class, nil].onTintColor = tint;
 #pragma clang diagnostic pop
     }
-    [self HeaderCell];
+    [self setupHeaderView];
 }
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {

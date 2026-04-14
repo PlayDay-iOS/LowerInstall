@@ -17,7 +17,7 @@
           "/opt/theos/include"
         ],
         "C_Cpp.default.defines": [
-          "__IPHONE_OS_VERSION_MIN_REQUIRED=90000"
+          "__IPHONE_OS_VERSION_MIN_REQUIRED=50000"
         ],
         "files.associations": {
           "*.x":  "logos",

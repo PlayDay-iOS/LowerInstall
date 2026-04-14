@@ -1,6 +1,6 @@
 #!/bin/sh
 # Boot-time activation, same rationale as postinst.  Catches jailbreaks
 # that finish Substrate init after launchd has started the daemons.
-killall -9 installd     2>/dev/null || true
-killall -9 itunesstored 2>/dev/null || true
-killall -9 appstored    2>/dev/null || true
+killall installd     2>/dev/null || true
+killall itunesstored 2>/dev/null || true
+killall appstored    2>/dev/null || true

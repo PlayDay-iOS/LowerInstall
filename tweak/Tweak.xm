@@ -21,7 +21,6 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
 #import <substrate.h>
 #import <notify.h>
 #import <sys/utsname.h>
@@ -38,7 +37,7 @@ extern const char *__progname;
 
 static struct {
     NSString *currentDevice;   // uname().machine, cached at %ctor
-    NSString *currentVersion;  // UIDevice.currentDevice.systemVersion, cached at %ctor
+    NSString *currentVersion;  // ProductVersion from SystemVersion.plist, cached at %ctor
     NSString *spoofDevice;     // loaded from prefs; defaults to currentDevice
     NSString *spoofVersion;    // loaded from prefs; defaults to currentVersion
 } g_state;
@@ -46,6 +45,8 @@ static struct {
 static BOOL g_enabled       = YES;
 static BOOL g_hooksInstalld = YES;
 static BOOL g_hooksStore    = YES;
+
+static NSObject *g_lock;
 
 static void settingsChanged(CFNotificationCenterRef center,
                             void *observer,
@@ -62,8 +63,10 @@ static void settingsChanged(CFNotificationCenterRef center,
 
         NSString *sd = p[@"SpoofDevice"]  ?: g_state.currentDevice;
         NSString *sv = p[@"SpoofVersion"] ?: g_state.currentVersion;
-        [g_state.spoofDevice  release]; g_state.spoofDevice  = [sd copy];
-        [g_state.spoofVersion release]; g_state.spoofVersion = [sv copy];
+        @synchronized(g_lock) {
+            [g_state.spoofDevice  release]; g_state.spoofDevice  = [sd copy];
+            [g_state.spoofVersion release]; g_state.spoofVersion = [sv copy];
+        }
 
         LINotice("reload: enabled=%d installd=%d store=%d spoof='%s'/'%s'",
                  g_enabled, g_hooksInstalld, g_hooksStore,
@@ -233,14 +236,38 @@ static void settingsChanged(CFNotificationCenterRef center,
         %orig(value, field);
         return;
     }
+
+    NSString *spoofVersion, *spoofDevice;
+    @synchronized(g_lock) {
+        spoofVersion = [g_state.spoofVersion retain];
+        spoofDevice  = [g_state.spoofDevice retain];
+    }
+
+    NSString *curVer = g_state.currentVersion;
+    NSString *curDev = g_state.currentDevice;
+
     NSString *rewritten = value;
     rewritten = [rewritten stringByReplacingOccurrencesOfString:
-        [NSString stringWithFormat:@"/%@ ", g_state.currentVersion]
-                  withString:[NSString stringWithFormat:@"/%@ ", g_state.spoofVersion]];
+        [NSString stringWithFormat:@"/%@ ", curVer]
+                  withString:[NSString stringWithFormat:@"/%@ ", spoofVersion]];
     rewritten = [rewritten stringByReplacingOccurrencesOfString:
-        [NSString stringWithFormat:@"/%@ ", g_state.currentDevice]
-                  withString:[NSString stringWithFormat:@"/%@ ", g_state.spoofDevice]];
+        [NSString stringWithFormat:@"/%@ ", curDev]
+                  withString:[NSString stringWithFormat:@"/%@ ", spoofDevice]];
+    // Also match tokens at end of string (no trailing space)
+    NSString *verSuffix = [NSString stringWithFormat:@"/%@", curVer];
+    if ([rewritten hasSuffix:verSuffix]) {
+        rewritten = [[rewritten substringToIndex:rewritten.length - verSuffix.length]
+                      stringByAppendingFormat:@"/%@", spoofVersion];
+    }
+    NSString *devSuffix = [NSString stringWithFormat:@"/%@", curDev];
+    if ([rewritten hasSuffix:devSuffix]) {
+        rewritten = [[rewritten substringToIndex:rewritten.length - devSuffix.length]
+                      stringByAppendingFormat:@"/%@", spoofDevice];
+    }
+
     LIInfo("UA spoof: '%s' -> '%s'", value.UTF8String, rewritten.UTF8String);
+    [spoofVersion release];
+    [spoofDevice release];
     %orig(rewritten, field);
 }
 %end
@@ -251,7 +278,11 @@ static void settingsChanged(CFNotificationCenterRef center,
     struct utsname systemInfo;
     uname(&systemInfo);
     g_state.currentDevice  = [[NSString alloc] initWithUTF8String:systemInfo.machine];
-    g_state.currentVersion = [[[UIDevice currentDevice] systemVersion] copy];
+    NSDictionary *sysVer = [NSDictionary dictionaryWithContentsOfFile:
+        @"/System/Library/CoreServices/SystemVersion.plist"];
+    g_state.currentVersion = [sysVer[@"ProductVersion"] copy];
+
+    g_lock = [NSObject new];
 
     LINotice("loading in '%s' (device=%s, iOS=%s)",
              __progname, systemInfo.machine,

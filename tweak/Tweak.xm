@@ -72,6 +72,157 @@ static void settingsChanged(CFNotificationCenterRef center,
     }
 }
 
+%group InstalldHooks
+
+%hook MIDaemonConfiguration
+- (BOOL)skipDeviceFamilyCheck {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIDaemonConfiguration: bypass skipDeviceFamilyCheck");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)skipThinningCheck {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIDaemonConfiguration: bypass skipThinningCheck");
+        return YES;
+    }
+    return %orig;
+}
+%end
+
+%hook MIBundle
+- (NSString *)minimumOSVersion {
+    NSString *ret = %orig;
+    if (g_enabled && g_hooksInstalld) {
+        LIInfo("MIBundle: override minimumOSVersion '%s' -> '2.0'", ret.UTF8String);
+        ret = @"2.0";
+    }
+    return ret;
+}
+- (NSArray *)supportedDevices {
+    NSArray *ret = %orig ?: @[];
+    if (g_enabled && g_hooksInstalld && ![ret containsObject:g_state.currentDevice]) {
+        LIInfo("MIBundle: inject device '%s' into supportedDevices (had: %s)",
+               g_state.currentDevice.UTF8String, ret.description.UTF8String);
+        NSMutableArray *m = [ret mutableCopy];
+        [m addObject:g_state.currentDevice];
+        ret = [[m copy] autorelease];
+        [m release];
+    }
+    return ret;
+}
+- (BOOL)isCompatibleWithDeviceFamily:(int)device {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass isCompatibleWithDeviceFamily:%d", device);
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)isApplicableToCurrentDeviceFamilyWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass isApplicableToCurrentDeviceFamilyWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)isApplicableToCurrentOSVersionWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass isApplicableToCurrentOSVersionWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)isApplicableToOSVersion:(id)arg1 error:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass isApplicableToOSVersion:%s", [arg1 description].UTF8String);
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)isApplicableToCurrentDeviceCapabilitiesWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass isApplicableToCurrentDeviceCapabilitiesWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)thinningMatchesCurrentDeviceWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass thinningMatchesCurrentDeviceWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)validateAppMetadataWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass validateAppMetadataWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)validatePluginMetadataWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIBundle: bypass validatePluginMetadataWithError");
+        return YES;
+    }
+    return %orig;
+}
+%end
+
+%hook MIInstallableBundle
+- (BOOL)_validateApplicationIdentifierForNewBundleSigningInfo:(id)arg1 error:(id *)arg2 {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIInstallableBundle: bypass _validateApplicationIdentifierForNewBundleSigningInfo");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)_verifyBundleMetadataWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIInstallableBundle: bypass _verifyBundleMetadataWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)_verifySubBundleMetadataWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIInstallableBundle: bypass _verifySubBundleMetadataWithError");
+        return YES;
+    }
+    return %orig;
+}
+- (BOOL)_isValidWatchKitApp:(id)arg1 withVersion:(id)arg2 installableSigningInfo:(id)arg3 error:(id *)arg4 {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIInstallableBundle: bypass _isValidWatchKitApp");
+        return YES;
+    }
+    return %orig;
+}
+%end
+
+%hook MIExecutableBundle
+- (BOOL)hasOnlyAllowedWatchKitAppInfoPlistKeysForWatchKitVersion:(id)arg1 error:(id *)arg2 {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIExecutableBundle: bypass hasOnlyAllowedWatchKitAppInfoPlistKeysForWatchKitVersion");
+        return YES;
+    }
+    return %orig;
+}
+%end
+
+%hook MIPluginKitPluginBundle
+- (BOOL)validateBundleMetadataWithError:(id *)error {
+    if (g_enabled && g_hooksInstalld) {
+        LIDebug("MIPluginKitPluginBundle: bypass validateBundleMetadataWithError");
+        return YES;
+    }
+    return %orig;
+}
+%end
+
+%end   // group InstalldHooks
+
 %ctor {
     struct utsname systemInfo;
     uname(&systemInfo);

@@ -163,7 +163,7 @@ static void LIRespring(void) {
                                                  get:@selector(readPreferenceValue:)
                                               detail:Nil cell:PSEditTextCell edit:Nil];
         [spec setProperty:@"SpoofVersion" forKey:@"key"];
-        [spec setProperty:currentVersion forKey:@"default"];
+        [spec setProperty:currentVersion forKey:@"placeholder"];
         [spec setProperty:@(UIKeyboardTypeNumbersAndPunctuation) forKey:@"keyboardType"];
         [spec setProperty:@(UITextAutocapitalizationTypeNone) forKey:@"autoCapsType"];
         [spec setProperty:@(UITextAutocorrectionTypeNo) forKey:@"autoCorrectionType"];
@@ -176,12 +176,29 @@ static void LIRespring(void) {
                                                  get:@selector(readPreferenceValue:)
                                               detail:Nil cell:PSEditTextCell edit:Nil];
         [spec setProperty:@"SpoofDevice" forKey:@"key"];
-        [spec setProperty:currentDevice forKey:@"default"];
+        [spec setProperty:currentDevice forKey:@"placeholder"];
         [spec setProperty:@(UITextAutocapitalizationTypeNone) forKey:@"autoCapsType"];
         [spec setProperty:@(UITextAutocorrectionTypeNo) forKey:@"autoCorrectionType"];
         [specifiers addObject:spec];
 
-        // 8. empty group spacer
+        // 8. group: Reference links
+        spec = [PSSpecifier emptyGroupSpecifier];
+        [spec setProperty:@"Reference" forKey:@"label"];
+        [specifiers addObject:spec];
+
+        spec = [PSSpecifier preferenceSpecifierNamed:@"Device Codenames"
+                                              target:self set:NULL get:NULL
+                                              detail:Nil cell:PSLinkCell edit:Nil];
+        spec->action = @selector(openModels);
+        [specifiers addObject:spec];
+
+        spec = [PSSpecifier preferenceSpecifierNamed:@"iOS Firmware Versions"
+                                              target:self set:NULL get:NULL
+                                              detail:Nil cell:PSLinkCell edit:Nil];
+        spec->action = @selector(openFirmware);
+        [specifiers addObject:spec];
+
+        // 9. empty group spacer
         [specifiers addObject:[PSSpecifier emptyGroupSpecifier]];
 
         // 9. Reset link
@@ -250,6 +267,14 @@ static void LIRespring(void) {
     if (alertView.tag == 55 && buttonIndex == 1) {
         LIRespring();
     }
+}
+
+- (void)openModels {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://theapplewiki.com/wiki/Models"]];
+}
+
+- (void)openFirmware {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://theapplewiki.com/wiki/Category:IOS_Firmware"]];
 }
 
 - (void)_returnKeyPressed:(id)arg1 {

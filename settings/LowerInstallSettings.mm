@@ -43,10 +43,60 @@ static void LIRespring(void) {
     LIKillProcessByName("SpringBoard");
 }
 
-@interface LowerInstallSettingsController : PSListController
+@interface LowerInstallSettingsController : PSListController {
+    UILabel *_label;
+    UILabel *_underLabel;
+}
+- (void)HeaderCell;
+- (void)increaseAlpha;
 @end
 
 @implementation LowerInstallSettingsController
+- (void)HeaderCell {
+    @autoreleasepool {
+        UIView *headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 120)];
+        CGFloat width = [[UIScreen mainScreen] bounds].size.width;
+
+        _label = [[UILabel alloc] initWithFrame:CGRectMake(0, 20, width, 60)];
+        _label.numberOfLines = 1;
+        _label.font = [UIFont fontWithName:@"HelveticaNeue-UltraLight" size:48];
+        _label.text = @"LowerInstall";
+        _label.backgroundColor = [UIColor clearColor];
+        _label.textColor = [UIColor blackColor];
+        _label.textAlignment = NSTextAlignmentCenter;
+        _label.alpha = 0;
+
+        _underLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 55, width, 60)];
+        _underLabel.numberOfLines = 1;
+        _underLabel.font = [UIFont fontWithName:@"HelveticaNeue-Light" size:14];
+        _underLabel.text = @"Install Apps In Lower iOS Version";
+        _underLabel.backgroundColor = [UIColor clearColor];
+        _underLabel.textColor = [UIColor grayColor];
+        _underLabel.textAlignment = NSTextAlignmentCenter;
+        _underLabel.alpha = 0;
+
+        [headerView addSubview:_label];
+        [headerView addSubview:_underLabel];
+
+        [[self table] setTableHeaderView:headerView];
+        [NSTimer scheduledTimerWithTimeInterval:0.5
+                                         target:self
+                                       selector:@selector(increaseAlpha)
+                                       userInfo:nil
+                                        repeats:NO];
+    }
+}
+
+- (void)increaseAlpha {
+    [UIView animateWithDuration:0.5 animations:^{
+        self->_label.alpha = 1;
+    } completion:^(BOOL finished) {
+        [UIView animateWithDuration:0.5 animations:^{
+            self->_underLabel.alpha = 1;
+        } completion:nil];
+    }];
+}
+
 - (id)specifiers {
     if (!_specifiers) {
         NSMutableArray *specifiers = [NSMutableArray array];
@@ -153,6 +203,9 @@ static void LIRespring(void) {
 - (void)loadView {
     [super loadView];
     self.title = @"LowerInstall";
+    [UISwitch appearanceWhenContainedIn:self.class, nil].onTintColor =
+        [UIColor colorWithRed:0.09 green:0.99 blue:0.99 alpha:1.0];
+    [self HeaderCell];
 }
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {

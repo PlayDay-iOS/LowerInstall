@@ -262,4 +262,13 @@ static void settingsChanged(CFNotificationCenterRef center,
         CFSTR("dev.playday3008.lowerinstall/SettingsChanged"),
         NULL, CFNotificationSuspensionBehaviorCoalesce);
     settingsChanged(NULL, NULL, NULL, NULL, NULL);
+
+    if (strcmp(__progname, "itunesstored") == 0 ||
+        strcmp(__progname, "appstored")    == 0) {
+        %init(StoreHooks);
+        LINotice("initialised StoreHooks");
+    } else if (strcmp(__progname, "installd") == 0) {
+        %init(InstalldHooks);
+        LINotice("initialised InstalldHooks");
+    }
 }

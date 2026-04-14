@@ -1,6 +1,6 @@
 Package: dev.playday3008.lowerinstall
 Name: LowerInstall
-Version: 1.0.1
+Version: 1.1.0
 Architecture: iphoneos-arm
 Depends: mobilesubstrate, preferenceloader, firmware (>= 9.0)
 Conflicts: com.julioverne.lowerinstall
